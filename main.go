@@ -7,6 +7,9 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"strconv"
+
+	upnp "github.com/rexoen/mosh-server-upnp-go/utils"
 )
 
 func GetLocalIP() string {
@@ -27,22 +30,24 @@ func GetLocalIP() string {
 
 func main() {
 	args := os.Args[1:]
-	lanIP := GetLocalIP()
-	fmt.Println(GetLocalIP())
 	out, err := exec.Command("mosh-server", args...).Output()
 	if err != nil {
 		log.Fatal("Error happend ", "\n", err)
 	}
+	serverCmdOutput := string(out)
 	r := regexp.MustCompile(`MOSH\W+CONNECT\W+(\d+)`)
-	cmd_output := string(out)
-	port := r.FindStringSubmatch(cmd_output)[1]
-	fmt.Println("running upnpc with arguments:")
-	upnpc_args := []string{"-e", "mosh", "-a", lanIP, port, port, "UDP"}
-	fmt.Println(upnpc_args)
-	out, err = exec.Command("upnpc", upnpc_args...).CombinedOutput()
+	port := r.FindStringSubmatch(serverCmdOutput)[1]
+	localIP := GetLocalIP()
+	log.Println(port)
+	log.Println(localIP)
+	port_int, err := strconv.Atoi(port)
 	if err != nil {
-		log.Fatal("Error happend ", "\n", err)
+		log.Fatal("strconv failed: ", err)
 	}
-	fmt.Println(string(out))
-	fmt.Println(cmd_output)
+	upnp.ForwardPort(localIP, port_int)
+	if err != nil {
+		log.Fatal("Error discovering UPnP servers: ", err)
+	}
+
+	fmt.Println(serverCmdOutput)
 }
